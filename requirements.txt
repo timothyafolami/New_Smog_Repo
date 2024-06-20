@@ -1,0 +1,12 @@
+streamlit
+streamlit_folium
+folium
+geopandas
+torch
+scikit-learn==1.4.2
+geemap
+openmeteo-requests
+requests-cache 
+retry-requests
+nbformat>=4.2.0
+notebook
