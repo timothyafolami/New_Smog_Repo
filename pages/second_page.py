@@ -5,8 +5,9 @@ from folium import plugins
 import datetime
 from datetime import date, timedelta
 from utils import get_pakistan_time, prepare_map_data, get_pollutant_values, create_aqi_legend,  display_district_color
-from utils_1 import prepare_map_data_pollutant, plot_pollutant_legend, plot_aqi_for_district
+from utils_1 import prepare_map_data_pollutant, plot_pollutant_legend, plot_aqi_for_district, forecast_plot_predicted_aqi, prepare_ranking_map
 import geopandas as gpd
+import numpy as np
 st.set_page_config(layout="wide")
 st.title("AQI in Punjab, Pakistan (page 2)")
 st.set_option('deprecation.showPyplotGlobalUse', False)
@@ -24,7 +25,8 @@ with col1:
     
     # displaying the best district
     st.markdown(f"### {best_district.name}")
-    st.markdown(f"#### AQI: {best_district['Aqi']}")
+    # round to 1 decimal place
+    st.markdown(f"#### AQI: {np.round(best_district['Aqi'], 1)}")
 
 with col2:
     st.markdown("## Worst District Name and AQI ")
@@ -32,7 +34,7 @@ with col2:
     
     # displaying the worst district
     st.markdown(f"### {worst_district.name}")
-    st.markdown(f"#### AQI: {worst_district['Aqi']}")
+    st.markdown(f"#### AQI: {np.round(worst_district['Aqi'], 1)}")
     
 with col3:
     st.markdown("## Worst Smog Contributor")    
@@ -60,10 +62,12 @@ with col1:
     st_folium(map, width='100%', height=400, key='map')
 
 with col2:
-    st.markdown("## AQI Ranking table")
-    poll_hr = get_pollutant_values(time)
-    poll_hr = poll_hr.sort_values(by='Aqi', ascending=True)
-    display_district_color(poll_hr.iloc[:10])
+    st.markdown("## AQI Ranking map")
+    # poll_hr = get_pollutant_values(time)
+    # poll_hr = poll_hr.sort_values(by='Aqi', ascending=True)
+    # display_district_color(poll_hr.iloc[:10])
+    map_1 = prepare_ranking_map()
+    st_folium(map_1, width='100%', height=400, key='ranking_map')
     
 # Creating a new section for pollutant map
 
@@ -87,11 +91,21 @@ st.markdown("### Pollutant Map")
 map = prepare_map_data_pollutant(selected_pollutant)
 st_folium(map, width='100%', height=800, key='pollutant_map')
 
-st.markdown("### Forecast lagging")
+st.markdown("## AQI Forecasting for a District")
 # creating a district dropdown
 district = ['Attock', 'Bahawalnagar', 'Bahawalpur', 'Bhakkar', 'Chakwal', 'Chiniot', 'Faisalabad', 'Gujranwala', 'Gujrat', 
             'Hafizabad', 'Jhang', 'Jhelum', 'Kasur', 'Khanewal', 'Khushab', 'Lahore', 'Layyah', 'Lodhran', 'Mianwali', 'Multan', 
             'Muzaffargarh', 'Narowal', 'Okara', 'Pakpattan', 'Rajanpur', 'Rawalpindi', 'Sahiwal', 'Sargodha', 'Sheikhupura', 
             'Sialkot', 'Vehari', 'Dera_Ghazi_Khan', 'Mandi_Bahuddin', 'Nankana_Sahib', 'Rahim_Yar_Khan', 'Toba_Tek_Singh']
 district_name = st.selectbox("Select a district", district)
-plot_aqi_for_district(district_name)
+# creating two columns
+col1, col2 = st.columns([1, 1])
+with col1:
+    st.markdown("### Lagging Forecast")
+    st.markdown(f"#### {district_name}")
+    plot_aqi_for_district(district_name)
+
+with col2:
+    st.markdown("### Future Forecast")
+    st.markdown(f"#### {district_name}")
+    forecast_plot_predicted_aqi(district_name)

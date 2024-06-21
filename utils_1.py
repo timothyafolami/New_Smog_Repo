@@ -67,7 +67,8 @@ def plot_pollutant_legend(pollutant):
     plt.tight_layout()
     plt.show()
     
-    
+def get_AQI(date_hour, forecasted_df):
+    return forecasted_df.loc[date_hour, ['Aqi', 'Location_id', 'District']]    
 
 def get_pollutant(date_hour, forecasted_df, pollutant):
     return forecasted_df.loc[date_hour, [pollutant, 'Location_id', 'District']]
@@ -147,6 +148,47 @@ def prepare_map_data_pollutant(pollutant):
     map_object = create_colored_map(color_dict_)
     return map_object
 
+# color palatte for aqi ranking map
+color_palette = [
+    "#00FF00", "#19F719", "#32EF32", "#4BE74B", "#64DF64", "#7DD77D", "#96CF96", "#AFC7AF", 
+    "#C8BFC8", "#E1B7E1", "#FF9FFF", "#FF99E5", "#FF92CC", "#FF8CB2", "#FF8699", "#FF7F80", 
+    "#FF7966", "#FF734D", "#FF6C33", "#FF662A", "#FF6020", "#FF5917", "#FF5313", "#FF4C0F", 
+    "#FF460B", "#FF4007", "#FF3A03", "#FF3300", "#FF2D00", "#FF2600", "#FF2000", "#FF1A00", 
+    "#FF1400", "#FF0D00", "#FF0700", "#FF0000"
+]
+
+def prepare_ranking_map():
+    #########################################################
+    # loading the forecasted data
+    forecasted_df = pd.read_csv('forecasted_pollutant.csv')
+    # print(forecasted_df.head())
+    # replacing unnamed column with date
+    forecasted_df = forecasted_df.rename(columns={'Unnamed: 0': 'date'})
+    # print('done')
+    # setting the date column as index
+    forecasted_df = forecasted_df.set_index('date')
+    
+    ###########################################################
+    date_hour = get_pakistan_time()
+    aqi_hour = get_AQI(date_hour, forecasted_df)
+    # aggregating the AQI values for each district
+    aqi_district = aqi_hour.groupby('District').mean()
+    # sorting aqi values in ascending order
+    aqi_district = aqi_district.sort_values(by='Aqi', ascending=True)
+    # implementing on the aqi_hour and pollutant_values
+    aqi_district['AQI_color'] = color_palette
+    # getting the shapefiles
+    shapefiles = get_shapefiles()
+    # creating a dictionary with district and AQI color
+    aqi_color_dict = aqi_district['AQI_color'].to_dict()
+    # fixing possible space issue   
+    aqi_color_dict = replace_space_with_underscore(aqi_color_dict)
+    # filtering aqi_color_dict based on the shapefiles
+    aqi_color_dict_ = {k: v for k, v in aqi_color_dict.items() if k in shapefiles}
+    ##############################################################
+    # Create the map with the sample data
+    map_object = create_colored_map(aqi_color_dict_)
+    return map_object
 
 
 def plot_aqi_for_district(district_name):
@@ -159,13 +201,10 @@ def plot_aqi_for_district(district_name):
     # print(day_30.columns)
     
     # Filter DataFrames by the given district
+    # Filter DataFrames by the given district
     day_30_district = day_30[day_30['District'] == district_name]
-    # checking the columns
-    print(day_30_district.head())
     day_14_district = day_14[day_14['District'] == district_name]
-    print(day_14_district.head())
     day_7_district = day_7[day_7['District'] == district_name]
-    print(day_7_district.head())
 
     # Convert 'date' column to datetime for each DataFrame
     day_30_district['date'] = pd.to_datetime(day_30_district['date'])
@@ -192,21 +231,61 @@ def plot_aqi_for_district(district_name):
     day_14_filtered = day_14_daily.loc[start_date_day_14:end_date]
     day_7_filtered = day_7_daily.loc[start_date_day_7:end_date]
 
-    # Plot the data
-    plt.figure(figsize=(12, 6))
+    # Create the plot
+    fig, ax = plt.subplots(figsize=(12, 6))
 
-    plt.plot(day_30_filtered.index, day_30_filtered['Aqi'], label='Day 30', color='blue')
-    plt.plot(day_14_filtered.index, day_14_filtered['Aqi'], label='Day 14', color='green')
-    plt.plot(day_7_filtered.index, day_7_filtered['Aqi'], label='Day 7', color='red')
+    ax.plot(day_30_filtered.index, day_30_filtered['Aqi'], label='Day 30', color='blue')
+    ax.plot(day_14_filtered.index, day_14_filtered['Aqi'], label='Day 14', color='green')
+    ax.plot(day_7_filtered.index, day_7_filtered['Aqi'], label='Day 7', color='red')
 
-    plt.xlabel('Date')
-    plt.ylabel('AQI')
-    plt.title(f'Max AQI in {district_name} District from Different Lag Periods')
-    plt.legend()
-    plt.grid(True)
+    ax.set_xlabel('Date')
+    ax.set_ylabel('AQI')
+    ax.set_title(f'Max AQI in {district_name} District from Different Lag Periods')
+    ax.legend()
+    ax.grid(True)
     
-    st.pyplot(plt)
+    st.pyplot(fig)
 
-# # Example usage
-# plot_aqi_for_district('Khushab')
 
+def forecast_plot_predicted_aqi(district_name):
+    # Load the dataset
+    aqi_pollutant = pd.read_csv('aqi_forecast.csv')
+    
+    # Filter DataFrame by the given district
+    district_data = aqi_pollutant[aqi_pollutant['District'] == district_name]
+    
+    # Convert 'date' column to datetime
+    district_data['date'] = pd.to_datetime(district_data['date'])
+    
+    # Resample to daily frequency and select the maximum AQI for each day
+    district_daily_max = district_data.resample('D', on='date').max()
+    
+    # Define the start date and end dates for the segments
+    start_date = pd.to_datetime('today').normalize()
+    end_date_7 = start_date + pd.Timedelta(days=7)
+    end_date_14 = start_date + pd.Timedelta(days=14)
+    end_date_60 = start_date + pd.Timedelta(days=60)
+
+    # Filter the data for each segment
+    segment_1 = district_daily_max.loc[start_date:end_date_7]
+    segment_2 = district_daily_max.loc[end_date_7+pd.Timedelta(days=1):end_date_14]
+    segment_3 = district_daily_max.loc[end_date_14+pd.Timedelta(days=1):end_date_60]
+
+    # Combine the segments to ensure they are connected in the plot
+    combined_segments = pd.concat([segment_1, segment_2, segment_3])
+    
+    # Plot the data
+    fig, ax = plt.subplots(figsize=(12, 6))
+
+    ax.plot(combined_segments.index, combined_segments['Aqi'], color='darkgreen', label='Day 0 to Day 60')
+    ax.plot(segment_1.index, segment_1['Aqi'], color='darkgreen', label='Day 0 to Day 7')
+    ax.plot(segment_2.index, segment_2['Aqi'], color='lightgreen', label='Day 8 to Day 14')
+    ax.plot(segment_3.index, segment_3['Aqi'], color='yellowgreen', label='Day 15 to Day 60')
+
+    ax.set_xlabel('Date')
+    ax.set_ylabel('AQI')
+    ax.set_title(f'Predicted AQI in {district_name} District')
+    ax.legend()
+    ax.grid(True)
+
+    st.pyplot(fig)
