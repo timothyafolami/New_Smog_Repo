@@ -14,7 +14,7 @@ from datetime import timedelta
 import os
 import streamlit as st
 import plotly.graph_objects as go
-# initiating matplotlib inline
+
 
 # %matplotlib inline
 
@@ -193,33 +193,35 @@ def prepare_ranking_map():
 
 def plot_aqi_for_district(district_name):
     # Load the datasets
-    day_7 = pd.read_csv('aqi_7_days_lag.csv')
-    # print(day_7.columns)
-    day_14 = pd.read_csv('aqi_14_days_lag.csv')
-    # print(day_14.columns)
-    day_30 = pd.read_csv('aqi_30_days_lag.csv')
-    # print(day_30.columns)
     
-    # Filter DataFrames by the given district
+    day_7 = pd.read_csv('aqi_7_days_lag.csv')
+    day_14 = pd.read_csv('aqi_14_days_lag.csv')
+    day_30 = pd.read_csv('aqi_30_days_lag.csv')
+    histo = pd.read_csv('ready_historical.csv')
+    
     # Filter DataFrames by the given district
     day_30_district = day_30[day_30['District'] == district_name]
     day_14_district = day_14[day_14['District'] == district_name]
     day_7_district = day_7[day_7['District'] == district_name]
+    histo_district = histo[histo['District'] == district_name]
 
     # Convert 'date' column to datetime for each DataFrame
     day_30_district['date'] = pd.to_datetime(day_30_district['date'])
     day_14_district['date'] = pd.to_datetime(day_14_district['date'])
     day_7_district['date'] = pd.to_datetime(day_7_district['date'])
+    histo_district['date'] = pd.to_datetime(histo_district['date'])
 
     # Set 'date' as the index for resampling
     day_30_district.set_index('date', inplace=True)
     day_14_district.set_index('date', inplace=True)
     day_7_district.set_index('date', inplace=True)
+    histo_district.set_index('date', inplace=True)
 
     # Resample to daily frequency and select the maximum AQI for each day
     day_30_daily = day_30_district.resample('D').max()
     day_14_daily = day_14_district.resample('D').max()
     day_7_daily = day_7_district.resample('D').max()
+    histo_daily = histo_district.resample('D').max()
 
     # Filter the data to include only the relevant date ranges
     end_date = pd.to_datetime('today').normalize()
@@ -230,21 +232,22 @@ def plot_aqi_for_district(district_name):
     day_30_filtered = day_30_daily.loc[start_date_day_30:end_date]
     day_14_filtered = day_14_daily.loc[start_date_day_14:end_date]
     day_7_filtered = day_7_daily.loc[start_date_day_7:end_date]
+    histo_filtered = histo_daily.loc[start_date_day_30:end_date]
 
-    # Create the plot
-    fig, ax = plt.subplots(figsize=(12, 6))
+    # Plot the data
+    plt.figure(figsize=(20, 6))
 
-    ax.plot(day_30_filtered.index, day_30_filtered['Aqi'], label='Day 30', color='blue')
-    ax.plot(day_14_filtered.index, day_14_filtered['Aqi'], label='Day 14', color='green')
-    ax.plot(day_7_filtered.index, day_7_filtered['Aqi'], label='Day 7', color='red')
+    plt.plot(day_30_filtered.index, day_30_filtered['Aqi'], label='Day 30', color='blue')
+    plt.plot(day_14_filtered.index, day_14_filtered['Aqi'], label='Day 14', color='green')
+    plt.plot(day_7_filtered.index, day_7_filtered['Aqi'], label='Day 7', color='red')
+    plt.plot(histo_filtered.index, histo_filtered['Aqi'], label='Historical', color='orange')
 
-    ax.set_xlabel('Date')
-    ax.set_ylabel('AQI')
-    ax.set_title(f'Max AQI in {district_name} District from Different Lag Periods')
-    ax.legend()
-    ax.grid(True)
-    
-    st.pyplot(fig)
+    plt.xlabel('Date')
+    plt.ylabel('AQI')
+    plt.title(f'Max AQI in {district_name} District from Different Lag Periods')
+    plt.legend()
+    plt.grid(True)
+    plt.show()
 
 
 def forecast_plot_predicted_aqi(district_name):
