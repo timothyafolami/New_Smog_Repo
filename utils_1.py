@@ -99,8 +99,8 @@ def get_pollutant_color(pollutant, value):
 
 
 def create_colored_map(locations_colors):
-    center_x = 31.1471
-    center_y = 75.3412
+    center_x = 30.9709
+    center_y = 72.4826
     m = folium.Map(location=[center_x, center_y], zoom_start=7)
     gdf_1 = gpd.read_file('./punjabaoi/aoi_punjab.shp')
     folium.GeoJson(data=gdf_1.to_json(), name='My Shapefile').add_to(m)

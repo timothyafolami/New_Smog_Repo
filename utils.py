@@ -116,8 +116,8 @@ def plot_aqi_histogram(df):
 # Function to create a colored map
 def create_colored_map(locations_colors):
     # Calculate the centroid for the initial map position (average coordinates of Punjab region)
-    center_x = 31.1471
-    center_y = 75.3412
+    center_x = 30.9709
+    center_y = 72.4826
 
     # Create the Folium map
     m = folium.Map(location=[center_x, center_y], zoom_start=7)
